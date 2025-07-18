@@ -1,315 +1,187 @@
-# 🚀 WiFi Auto-Connector 
+# � WiFi Auto-Connector
 
-*Chương trình tự động kết nối WiFi với captive portal - Dành cho những ai chán click "Đồng ý" mỗi 30 phút*
-
----
-
-## 🤔 Câu chuyện đằng sau
-
-Bạn có bao giờ ngồi ở quán cà phê, mở laptop ra làm việc, nhưng cứ 30 phút lại phải click vào browser để login WiFi lại không? Hoặc tệ hơn, bị block MAC address và phải đợi hoặc fake MAC? 
-
-Tôi đã từng như vậy. Ngồi code được 20 phút thì mất mạng, phải mở browser, click accept terms, wait 6 giây, click connect... Rồi 30 phút sau lại làm lại. Đôi khi còn bị block MAC và phải restart máy hoặc đợi.
-
-Thế là tôi viết chương trình này. Giờ chỉ cần chạy script, ngồi code uống cà phê thôi! 🎯
+*Bởi vì cuộc đời quá ngắn để ngồi click "Đồng ý" mỗi 15 phút*
 
 ---
 
-## ✨ Tính năng chính
+## �‍♂️ Tại sao tôi viết cái này?
 
-- **🔄 Tự động login captive portal** - Không cần click manual nữa
-- **🎭 MAC address spoofing** - Bypass MAC blocking thông minh
-- **🌈 Logging màu sắc** - Biết chuyện gì đang xảy ra
-- **⚡ Performance optimization** - Caching, smart retry, resource management
-- **🛡️ Graceful shutdown** - Không để lại process zombie
-- **🏗️ Clean architecture** - Code dễ maintain và extend
-- **📊 Smart monitoring** - Chỉ check khi cần, không spam
+Câu chuyện bắt đầu từ cái sự nghèo khỉ của tôi trong một mùa thu ở Sài Gòn. Tôi đang sử dụng mạng miễn phí của kí túc xá, deadline đang cận kề, code đang chạy smooth... thì đột nhiên mất mạng. Mở browser lên, trang login hiện ra với dòng chữ quen thuộc "Vui lòng đồng ý điều khoản". Click. Đợi 6 giây. Click tiếp. Xong.
+
+15 phút sau, lại mất mạng. Lại click. Lại đợi.
+
+Ngày hôm đó tôi mất mạng 8 lần. Mỗi lần phải ngừng code để làm cái ritual click-đợi-click này. Tệ hơn, có lúc bị block MAC address, phải đợi hoặc restart máy.
+
+Tôi nghĩ: "Chắc có cách nào tự động hóa cái này được."
+
+Và đây là kết quả. Giờ tôi chỉ cần chạy script này, ngồi code uống cà phê, không cần quan tâm WiFi nữa. Thậm chí còn tự động chia sẻ mạng cho điện thoại luôn.
 
 ---
 
-## 🚀 Quick Start
+## 🎯 Nó làm được gì?
+
+- **Tự động login captive portal** - Không bao giờ phải click manual nữa
+- **MAC spoofing thông minh** - Bypass các giới hạn MAC address
+- **Chia sẻ WiFi qua hotspot** - Điện thoại/tablet tự động có mạng
+- **Tự phục hồi** - Mất mạng? Không sao, script lo
+- **Logging đầy đủ** - Biết chính xác chuyện gì đang xảy ra
+- **Chạy êm ái** - Không spam, không làm chậm máy
+
+---
+
+## 🏃‍♂️ Chạy thử trong 5 phút
 
 ```bash
-# 1. Clone hoặc download
-git clone <repo-url>
-cd wifi-script
-
-# 2. Cài dependencies
+# Bước 1: Cài Python dependencies
 pip install selenium requests
 
-# 3. Download Edge WebDriver
-# https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
+# Bước 2: Tải Edge WebDriver
+# Vào https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
+# Download về đâu đó, nhớ đường dẫn
 
-# 4. Cài spoof-mac tool (optional)
+# Bước 3: Cài MAC spoofing tool (optional nhưng nên có)
 pip install spoof-mac
 
-# 5. Configure XPath trong file
-# Sửa WifiConfig trong wifi_refactored.py
+# Bước 4: Sửa config trong wifi_refactored.py
+# Thay đổi đường dẫn driver và XPath (xem phần dưới)
 
-# 6. Run
+# Bước 5: Chạy
 python wifi_refactored.py
 ```
 
----
-
-## 🔧 Chi tiết Setup
-
-### 1. Requirements
-- **Python 3.7+** 
-- **Microsoft Edge** (đã cài sẵn trên Windows)
-- **Edge WebDriver** - Download từ [Microsoft](https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/)
-- **spoof-mac** (optional) - Cho MAC address changing
-
-### 2. Cài đặt Dependencies
-
-```bash
-pip install selenium requests
-```
-
-### 3. Download Edge WebDriver
-- Vào https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/
-- Download version match với Edge browser của bạn
-- Extract vào folder (ví dụ: `C:\Users\Hieu\Desktop\Edge_Driver\`)
-
-### 4. Cài spoof-mac (Optional)
-```bash
-pip install spoof-mac
-```
-
-### 5. Tìm XPath của trang captive portal
-- Mở browser, connect WiFi
-- Khi xuất hiện trang login, press F12 → Elements
-- Right-click vào button "Remind me later" → Copy → Copy XPath
-- Làm tương tự với 2 buttons chính
-- Paste vào config
+Thế thôi! Script sẽ tự động lo phần còn lại.
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Cấu hình cơ bản
 
-Sửa class `WifiConfig` trong `wifi_refactored.py`:
+Mở file `wifi_refactored.py` và sửa class `WifiConfig`:
 
 ```python
 @dataclass
 class WifiConfig:
-    # Đường dẫn đến Edge WebDriver
+    # Đường dẫn tới Edge WebDriver (thay đổi theo máy bạn)
     edge_driver_path: str = r"C:\Users\Hieu\Desktop\Edge_Driver\msedgedriver.exe"
     
-    # XPath của các elements (tìm bằng F12 Developer Tools)
+    # XPath của các nút trên trang login (quan trọng nhất!)
     xpath_popup_remind_later: str = "//*[@id='remind-me']"
     xpath_button_1: str = "/html/body/main/div[1]/div[3]/div/div/div/div[1]/button"
     xpath_button_2: str = "//*[@id='connectToInternet']"
     
-    # Timing settings
+    # Các tùy chọn khác (có thể để mặc định)
     check_interval: int = 10                    # Kiểm tra mỗi 10 giây
-    max_failures_before_mac_change: int = 4     # Đổi MAC sau 4 lần fail
-    mac_change_cooldown: int = 300              # Cooldown 5 phút
-    browser_timeout: int = 40                   # Timeout browser
-    network_timeout: int = 10                   # Timeout network check
-    mac_stabilization_time: int = 15            # Đợi network ổn định
+    enable_hotspot_sharing: bool = True         # Tự động chia sẻ WiFi
+    enable_mac_spoofing: bool = True           # Cho phép đổi MAC
 ```
+
+### 🔍 Cách tìm XPath
+
+Đây là phần quan trọng nhất. Nếu XPath sai, script sẽ không hoạt động:
+
+1. **Kết nối WiFi và mở trang login**
+2. **Nhấn F12 → Developer Tools**
+3. **Click biểu tượng mũi tên (Select element)**
+4. **Click vào nút cần lấy XPath**
+5. **Right-click → Copy → Copy XPath**
+6. **Paste vào config**
+
+Làm tương tự cho cả 3 elements: popup dismiss, button 1, button 2.
 
 ---
 
-## 🎮 Cách sử dụng
+## 🎮 Sử dụng
 
-### Basic Usage
+### Chạy bình thường:
 ```bash
 python wifi_refactored.py
 ```
 
-### What You'll See
+### Chạy với quyền admin (để bật hotspot):
+```bash
+# Mở PowerShell/CMD as Administrator, rồi chạy
+python wifi_refactored.py
+```
+
+### Chạy ngầm:
+```bash
+pythonw wifi_refactored.py
+```
+
+### Khi chạy, bạn sẽ thấy:
+
 ```
 🚀 Starting WiFi Auto-Connector...
 --- WiFi Auto-Connector Status (14:30:25) ---
 State: connected
-Consecutive failures: 0
-MAC tool available: Yes
+Hotspot status: Enabled (Sharing WiFi)
+Running as admin: Yes
 --------------------------------------------------
-14:30:25 - INFO - ✅ Internet connection stable
-14:30:25 - INFO - 🎉 Internet connection restored!
-14:30:25 - INFO - ⏳ Next check in 10 seconds...
-```
-
-### Khi mất mạng
-```
-14:35:15 - WARNING - ❌ Blocked by captive portal
-14:35:15 - WARNING - Connection failure #1
-14:35:15 - INFO - 🔐 Attempting captive portal login...
-14:35:15 - INFO - Starting browser automation...
-14:35:16 - INFO - Found popup, dismissing...
-14:35:16 - INFO - ✅ Popup dismissed
-14:35:17 - INFO - ✅ First button clicked
-14:35:23 - INFO - ✅ Second button clicked
-14:35:33 - INFO - ✅ Login sequence completed successfully
-```
-
-### Khi cần đổi MAC
-```
-14:40:25 - INFO - 🔄 Attempting MAC address change...
-14:40:25 - INFO - Changing MAC address using: C:\Users\...\spoof-mac.exe
-14:40:26 - INFO - MAC address changed successfully
-14:40:26 - INFO - Waiting 15s for network stabilization...
+✅ Internet connection stable
+🔥 Mobile hotspot enabled - sharing WiFi
+⏳ Next check in 10 seconds...
 ```
 
 ---
 
-## 🔍 Troubleshooting
+## � Xử lý lỗi thường gặp
 
 ### "Edge driver not found"
-```
-❌ Configuration Error: Edge driver not found: C:\Users\...\msedgedriver.exe
-```
-**Fix**: Download đúng Edge WebDriver và update path trong config
+**Nguyên nhân:** Đường dẫn WebDriver sai  
+**Cách fix:** Download Edge WebDriver từ Microsoft và sửa đường dẫn trong config
 
-### "Please replace XPath placeholders"
-```
-❌ Configuration Error: Please replace XPath placeholders with actual values
-```
-**Fix**: Thay thế XPath bằng values thực từ captive portal
+### "XPath not found"
+**Nguyên nhân:** XPath elements đã thay đổi  
+**Cách fix:** Dùng F12 Developer Tools để lấy XPath mới
 
-### "spoof-mac tool not found"
-```
-⚠️ spoof-mac tool not found. MAC address changing will be unavailable.
-```
-**Fix**: `pip install spoof-mac` hoặc ignore nếu không cần đổi MAC
+### "Not running as administrator"
+**Nguyên nhân:** Thiếu quyền admin để bật hotspot  
+**Cách fix:** Chạy PowerShell/CMD as Administrator
 
-### Browser timeout
-```
-❌ Timeout during browser automation: Message: timeout
-```
-**Fix**: Tăng `browser_timeout` trong config hoặc check XPath
+### "spoof-mac not found"
+**Nguyên nhân:** Chưa cài MAC spoofing tool  
+**Cách fix:** `pip install spoof-mac` hoặc tắt MAC spoofing trong config
 
-### Process cleanup issues
-Nếu có Edge processes còn sót lại:
-- Script tự động cleanup khi thoát
-- Hoặc manually: Task Manager → End Edge processes
+### Browser bị timeout
+**Nguyên nhân:** Mạng chậm hoặc trang login phức tạp  
+**Cách fix:** Tăng `browser_timeout` trong config
 
 ---
 
-## 💡 Advanced Tips
+## 💡 Mẹo hay
 
-### 1. Chạy background
-```bash
-# Windows
-pythonw wifi_refactored.py
-
-# Hoặc dùng nohup trên Linux/Mac
-nohup python wifi_refactored.py &
-```
-
-### 2. Auto-start với Windows
-- Tạo .bat file:
+### 🔄 Chạy tự động khi khởi động Windows
+Tạo file `start_wifi.bat`:
 ```batch
 @echo off
 cd /d "C:\Users\Hieu\Desktop\wifi-script"
 python wifi_refactored.py
 ```
-- Add vào Windows Startup folder
+Rồi bỏ vào thư mục Startup của Windows.
 
-### 3. Multiple WiFi networks
-- Tạo multiple config files
-- Hoặc detect WiFi name và switch config
+### 📱 Chia sẻ WiFi cho điện thoại
+Script tự động bật hotspot khi WiFi hoạt động. Điện thoại chỉ cần kết nối vào hotspot của máy tính là có mạng.
 
-### 4. Logging to file
-Sửa `setup_logging()` để add file handler:
-```python
-file_handler = logging.FileHandler('wifi_connector.log')
-logger.addHandler(file_handler)
-```
+### 🏃‍♂️ Chạy nhiều config khác nhau
+Nếu bạn thường xuyên ở các quán khác nhau với captive portal khác nhau, có thể tạo nhiều file config và switch giữa chúng.
 
 ---
 
-## 🏗️ Technical Details
+## 🤝 Đóng góp
 
-### Architecture
-```
-WifiAutoConnector (Main Orchestrator)
-├── ProcessManager (Edge process management)
-├── NetworkChecker (Internet connectivity)
-├── MacAddressManager (MAC spoofing)
-├── BrowserAutomator (Selenium automation)
-└── WifiConfig (Configuration)
-```
-
-### Design Patterns
-- **Factory Pattern**: WebDriver setup
-- **Strategy Pattern**: Different MAC spoofing methods
-- **Observer Pattern**: State change notifications
-- **Singleton Pattern**: Logger instance
-
-### Performance Optimizations
-- **Caching**: Network status cache (5s) để avoid spam checking
-- **Lazy Loading**: Browser chỉ khởi tạo khi cần
-- **Resource Management**: Proper cleanup với finally blocks
-- **Process Tracking**: Chỉ track processes của script
-
-### Error Handling
-- **Custom Exceptions**: Specific error types
-- **Graceful Degradation**: Fallback mechanisms
-- **Retry Logic**: Smart retry với backoff
-- **Resource Cleanup**: Guaranteed cleanup
+Nếu bạn có ý tưởng cải tiến hoặc gặp bug, welcome to contribute! Tôi built cái này để giải quyết vấn đề của mình, nhưng nếu nó hữu ích cho bạn và bạn muốn làm nó tốt hơn, tôi rất vui.
 
 ---
 
-## 🤝 Contributing
+## ⚖️ Lưu ý pháp lý
 
-Nếu bạn muốn improve code:
-
-1. **Fork** repo
-2. **Create feature branch**: `git checkout -b feature/amazing-feature`
-3. **Test thoroughly** - đặc biệt edge cases
-4. **Update documentation** nếu cần
-5. **Submit PR** với clear description
-
-### Ideas for improvement:
-- [ ] Support multiple captive portal types
-- [ ] GUI interface
-- [ ] Mobile hotspot support
-- [ ] Network profile management
-- [ ] Statistics và monitoring
-- [ ] Docker container
-- [ ] Cross-platform testing
+**Sử dụng có trách nhiệm:**
+- Chỉ dùng trên WiFi mà bạn được phép truy cập
+- Không lạm dụng để bypass security
+- Tôn trọng terms of service của từng mạng
+- Chịu trách nhiệm về việc sử dụng
 
 ---
 
-## ⚖️ Legal & Disclaimer
+*Được viết bởi một developer chán ngấy việc click "Đồng ý" mỗi 30 phút. Nếu bạn cũng như tôi, hy vọng cái này sẽ giúp bạn tập trung vào việc quan trọng hơn.*
 
-### ⚠️ Important Notes:
-- **Chỉ sử dụng trên WiFi mà bạn có quyền truy cập**
-- **MAC spoofing có thể vi phạm ToS của một số networks**
-- **Chịu trách nhiệm về việc sử dụng**
-- **Không dùng để bypass security không được phép**
-
-### Responsible Usage:
-- Respect network policies
-- Don't abuse free WiFi systems
-- Use primarily for legitimate work/study
-- Be mindful of bandwidth usage
-
----
-
-## 🙏 Credits & Acknowledgments
-
-- **Selenium** - Browser automation framework
-- **spoof-mac** - MAC address spoofing tool
-- **Microsoft Edge** - WebDriver platform
-- **Python community** - Amazing ecosystem
-- **Coffee shops** - Inspiration và testing environment ☕
-
----
-
-## 📞 Support
-
-Nếu gặp issues:
-1. Check **Troubleshooting** section trước
-2. Verify **configuration** 
-3. Test **manually** trước khi report bug
-4. Provide **detailed logs** khi báo lỗi
-
----
-
-*Made with ❤️ và rất nhiều cà phê bởi ai đó chán click "Đồng ý" mỗi 30 phút*
-
-**Version**: 2.0 (Refactored)  
-**Last Updated**: July 2025  
-**License**: MIT (Use responsibly!)
+**Made with ❤️ and lots of ☕**
