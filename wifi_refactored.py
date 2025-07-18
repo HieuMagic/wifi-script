@@ -403,7 +403,7 @@ class BrowserManager:
         options = webdriver.EdgeOptions()
         
         # Performance optimizations
-        # options.add_argument("--headless")
+        options.add_argument("--headless")
         options.add_argument("--log-level=3")
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-gpu")
