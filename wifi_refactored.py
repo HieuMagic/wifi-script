@@ -839,7 +839,7 @@ class WifiAutoConnector:
     def _process_successful_connection(self) -> None:
         """Handle successful internet connection and manage hotspot sharing"""
         if self.connection_state != ConnectionState.CONNECTED:
-            self.logger.info("🎉 Internet connection established!")
+            self.logger.info("Internet connection established!")
             self.connection_state = ConnectionState.CONNECTED
             self.failed_connection_attempts = 0
             self.network_manager.invalidate_connectivity_cache()
