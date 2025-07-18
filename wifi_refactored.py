@@ -69,8 +69,9 @@ class WifiConfig:
     
     # Timing
     check_interval: int = 10
-    max_failures_before_mac_change: int = 4
+    max_failures_before_mac_change: int = 3
     mac_change_cooldown: int = 300  # 5 minutes
+    mac_stabilization_time: int = 15  # seconds to wait after MAC change
     
     # Features
     enable_mac_spoofing: bool = True
@@ -212,15 +213,13 @@ def suppress_subprocess_output():
 # ================================= CORE MANAGERS =================================
 
 class NetworkManager:
-    """Handles network connectivity and MAC address management"""
+    """Handles network connectivity"""
     
     def __init__(self, logger: logging.Logger, config: WifiConfig):
         self.logger = logger
         self.config = config
         self._last_check_time: Optional[datetime] = None
         self._last_check_result: Optional[bool] = None
-        self._spoof_mac_executable: Optional[str] = None
-        self._mac_tool_checked = False
     
     def check_internet_connection(self) -> bool:
         """Check internet connectivity with caching"""
@@ -259,122 +258,94 @@ class NetworkManager:
         """Clear network check cache"""
         self._last_check_time = None
         self._last_check_result = None
+
+class MacAddressManager:
+    """Manages MAC address spoofing"""
     
-    def is_mac_tool_available(self) -> bool:
-        """Check if MAC spoofing tool is available"""
-        if not self._mac_tool_checked:
-            self._spoof_mac_executable = self._find_spoof_mac_executable()
-            self._mac_tool_checked = True
-        return self._spoof_mac_executable is not None
+    def __init__(self, logger: logging.Logger, config: WifiConfig):
+        self.logger = logger
+        self.config = config
+        self._spoof_mac_path: Optional[str] = None
     
-    def _find_spoof_mac_executable(self) -> Optional[str]:
-        """Find spoof-mac executable or use built-in Windows method"""
-        # First try to find spoof-mac executable
-        possible_paths = [
-            os.path.join(os.path.dirname(sys.executable), "Scripts", "spoof-mac.exe"),
-            os.path.join(os.path.expanduser("~"), "AppData", "Roaming", "Python", 
-                        f"Python{sys.version_info.major}{sys.version_info.minor}", "Scripts", "spoof-mac.exe"),
-            "spoof-mac.exe"  # Assume it's in PATH
-        ]
+    def find_spoof_mac_executable(self) -> Optional[str]:
+        """Find spoof-mac executable"""
+        if self._spoof_mac_path:
+            return self._spoof_mac_path
         
-        for path in possible_paths:
-            if Path(path).exists():
-                return path
+        # Check system Scripts directory
+        system_path = os.path.join(
+            os.path.dirname(sys.executable), "Scripts", "spoof-mac.exe"
+        )
+        if os.path.exists(system_path):
+            self._spoof_mac_path = system_path
+            return system_path
         
-        # If spoof-mac not found, check if we can use Windows built-in methods
+        # Check user Scripts directory
         try:
-            # Check if we have admin privileges for netsh
-            result = subprocess.run(
-                ["netsh", "interface", "show", "interface"],
-                capture_output=True, text=True, timeout=10
+            python_version = f"Python{sys.version_info.major}{sys.version_info.minor}"
+            user_path = os.path.join(
+                os.getenv('APPDATA'), "Python", python_version, "Scripts", "spoof-mac.exe"
             )
-            if result.returncode == 0:
-                return "netsh"  # Use netsh as fallback
-        except:
+            if os.path.exists(user_path):
+                self._spoof_mac_path = user_path
+                return user_path
+        except Exception:
+            pass
+        
+        # Check for Python file
+        try:
+            user_py_path = os.path.join(
+                os.getenv('APPDATA'), "Python", 
+                f"Python{sys.version_info.major}{sys.version_info.minor}",
+                "Scripts", "spoof-mac.py"
+            )
+            if os.path.exists(user_py_path):
+                self._spoof_mac_path = user_py_path
+                return user_py_path
+        except Exception:
             pass
         
         return None
     
-    @retry_on_failure(retries=2)
-    def change_mac_address(self) -> bool:
-        """Change MAC address using spoof-mac tool or Windows netsh"""
-        if not self.is_mac_tool_available():
-            raise MacAddressError("MAC spoofing tool not found")
-        
-        self.logger.info("🔄 Changing MAC address...")
-        
-        try:
-            if self._spoof_mac_executable == "netsh":
-                # Use Windows netsh method
-                return self._change_mac_with_netsh()
-            else:
-                # Use spoof-mac executable
-                cmd = [self._spoof_mac_executable, "randomize", "wi-fi"]
-                result = subprocess.run(cmd, capture_output=True, text=True, 
-                                      timeout=Constants.PROCESS_TIMEOUT, check=True)
-                
-                self.logger.info("✅ MAC address changed successfully")
-                self.logger.info(f"⏳ Waiting {Constants.MAC_STABILIZATION_TIME}s for network stabilization...")
-                time.sleep(Constants.MAC_STABILIZATION_TIME)
-                return True
-                
-        except subprocess.CalledProcessError as e:
-            raise MacAddressError(f"MAC change failed: {e.stderr}")
-        except subprocess.TimeoutExpired:
-            raise MacAddressError("MAC change timed out")
+    def is_tool_available(self) -> bool:
+        """Check if spoof-mac tool is available"""
+        return self.find_spoof_mac_executable() is not None
     
-    def _change_mac_with_netsh(self) -> bool:
-        """Change MAC address using Windows netsh (requires admin privileges)"""
+    def change_mac_address(self) -> bool:
+        """Change MAC address using spoof-mac tool"""
+        spoof_mac_path = self.find_spoof_mac_executable()
+        
+        if not spoof_mac_path:
+            raise MacAddressError("spoof-mac tool not found")
+        
+        self.logger.info(f"🔄 Changing MAC address using: {spoof_mac_path}")
+        
+        # Build command
+        if spoof_mac_path.endswith(".py"):
+            command = [sys.executable, spoof_mac_path, "randomize", "wi-fi"]
+        else:
+            command = [spoof_mac_path, "randomize", "wi-fi"]
+        
         try:
-            # Generate random MAC address
-            import random
-            mac = "02:%02x:%02x:%02x:%02x:%02x" % (
-                random.randint(0, 255),
-                random.randint(0, 255),
-                random.randint(0, 255),
-                random.randint(0, 255),
-                random.randint(0, 255)
-            )
-            
-            # Get Wi-Fi interface name
+            self.logger.debug(f"Running command: {' '.join(command)}")
             result = subprocess.run(
-                ["netsh", "interface", "show", "interface"],
-                capture_output=True, text=True, timeout=10
+                command, 
+                check=True, 
+                capture_output=True, 
+                text=True, 
+                timeout=30
             )
             
-            wifi_interface = None
-            for line in result.stdout.split('\n'):
-                if 'Wi-Fi' in line and 'Connected' in line:
-                    wifi_interface = "Wi-Fi"
-                    break
+            self.logger.info("✅ MAC address changed successfully")
+            self.logger.info(f"⏳ Waiting {self.config.mac_stabilization_time}s for network stabilization...")
+            time.sleep(self.config.mac_stabilization_time)
             
-            if not wifi_interface:
-                raise MacAddressError("Wi-Fi interface not found")
-            
-            # Disable interface
-            subprocess.run(
-                ["netsh", "interface", "set", "interface", wifi_interface, "disabled"],
-                check=True, timeout=10
-            )
-            
-            time.sleep(2)
-            
-            # Change MAC address (this approach varies by Windows version)
-            # For now, just re-enable the interface
-            subprocess.run(
-                ["netsh", "interface", "set", "interface", wifi_interface, "enabled"],
-                check=True, timeout=10
-            )
-            
-            self.logger.info("✅ MAC address change attempted (Windows method)")
-            self.logger.info(f"⏳ Waiting {Constants.MAC_STABILIZATION_TIME}s for network stabilization...")
-            time.sleep(Constants.MAC_STABILIZATION_TIME)
             return True
             
         except subprocess.CalledProcessError as e:
-            raise MacAddressError(f"Windows MAC change failed: {e}")
-        except subprocess.TimeoutExpired:
-            raise MacAddressError("Windows MAC change timed out")
+            raise MacAddressError(f"spoof-mac command failed: {e.stderr}")
+        except Exception as e:
+            raise MacAddressError(f"Unexpected error changing MAC: {e}")
 
 class BrowserManager:
     """Handles browser automation and process management"""
@@ -710,6 +681,7 @@ class WifiAutoConnector:
         
         # Initialize managers
         self.network_manager = NetworkManager(self.logger, config)
+        self.mac_manager = MacAddressManager(self.logger, config)
         self.browser_manager = BrowserManager(self.logger, config)
         self.hotspot_manager = HotspotManager(self.logger, config)
         
@@ -770,7 +742,7 @@ class WifiAutoConnector:
         """Check system requirements and capabilities"""
         # Check MAC spoofing capability
         if self.config.enable_mac_spoofing:
-            if not self.network_manager.is_mac_tool_available():
+            if not self.mac_manager.is_tool_available():
                 self.logger.warning("⚠️ MAC spoofing tool not found. MAC changing will be disabled.")
                 self.config.enable_mac_spoofing = False
         
@@ -791,7 +763,7 @@ class WifiAutoConnector:
         print(f"--- WiFi Auto-Connector Status ({current_time}) ---")
         print(f"State: {self.state.value}")
         print(f"Consecutive failures: {self.consecutive_failures}")
-        print(f"MAC spoofing: {'Available' if self.network_manager.is_mac_tool_available() else 'Unavailable'}")
+        print(f"MAC spoofing: {'Available' if self.mac_manager.is_tool_available() else 'Unavailable'}")
         print(f"Running as admin: {'Yes' if self.hotspot_manager.is_admin() else 'No'}")
         
         if self.config.enable_hotspot_sharing:
@@ -846,7 +818,7 @@ class WifiAutoConnector:
         if not self.config.enable_mac_spoofing:
             return False
         
-        if not self.network_manager.is_mac_tool_available():
+        if not self.mac_manager.is_tool_available():
             return False
         
         if self.consecutive_failures < self.config.max_failures_before_mac_change:
@@ -865,7 +837,7 @@ class WifiAutoConnector:
         self.state = ConnectionState.MAC_CHANGING
         
         try:
-            success = self.network_manager.change_mac_address()
+            success = self.mac_manager.change_mac_address()
             if success:
                 self.consecutive_failures = 0
                 self.last_mac_change_time = datetime.now()
