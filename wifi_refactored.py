@@ -250,14 +250,14 @@ class NetworkManager:
                 
                 if response.status_code == 200:
                     self._update_cache(True)
-                    self.logger.info("✅ Internet connectivity confirmed")
+                    self.logger.info("Internet connectivity confirmed")
                     return True
                     
             except requests.RequestException:
                 continue  # Try next endpoint
         
         self._update_cache(False)
-        self.logger.warning("❌ No internet connectivity detected")
+        self.logger.warning("No internet connectivity detected")
         return False
     
     def invalidate_connectivity_cache(self) -> None:
@@ -329,7 +329,7 @@ class MacAddressManager:
         if not spoofing_tool_path:
             raise MacAddressError("spoof-mac tool not found. Install with: pip install spoof-mac")
         
-        self.logger.info(f"🔄 Randomizing WiFi adapter MAC address using: {spoofing_tool_path}")
+        self.logger.info(f"Randomizing WiFi adapter MAC address using: {spoofing_tool_path}")
         
         # Construct command based on tool type
         if spoofing_tool_path.endswith(".py"):
@@ -347,8 +347,8 @@ class MacAddressManager:
                 timeout=30
             )
             
-            self.logger.info("✅ MAC address randomized successfully")
-            self.logger.info(f"⏳ Waiting {self.config.network_adapter_stabilization_time}s for network adapter reset...")
+            self.logger.info("MAC address randomized successfully")
+            self.logger.info(f"Waiting {self.config.network_adapter_stabilization_time}s for network adapter reset...")
             
             # Critical: Network stack needs time to reinitialize with new MAC
             time.sleep(self.config.network_adapter_stabilization_time)
@@ -410,7 +410,7 @@ class BrowserManager:
         """Execute the complete captive portal authentication flow"""
         try:
             with self.managed_browser_session() as driver:
-                self.logger.info("🔐 Initiating captive portal authentication...")
+                self.logger.info("Initiating captive portal authentication...")
                 
                 # Navigate to a non-HTTPS site to trigger captive portal redirect
                 driver.get("http://neverssl.com")
@@ -423,14 +423,14 @@ class BrowserManager:
                 # Execute the portal navigation sequence
                 self._navigate_captive_portal_flow(driver, wait)
                 
-                self.logger.info("✅ Captive portal authentication sequence completed")
+                self.logger.info("Captive portal authentication sequence completed")
                 return LoginResult.SUCCESS
                 
         except TimeoutException:
-            self.logger.error("❌ Captive portal authentication timed out")
+            self.logger.error("Captive portal authentication timed out")
             return LoginResult.TIMEOUT
         except Exception as e:
-            self.logger.error(f"❌ Captive portal authentication failed: {e}")
+            self.logger.error(f"Captive portal authentication failed: {e}")
             return LoginResult.FAILED
     
     def _dismiss_reminder_popup(self, driver: webdriver.Edge) -> None:
@@ -443,7 +443,7 @@ class BrowserManager:
             self.logger.info("Dismissing captive portal popup...")
             time.sleep(1)  # Brief pause for popup stability
             driver.execute_script("arguments[0].click();", popup_button)
-            self.logger.info("✅ Popup dismissed successfully")
+            self.logger.info("Popup dismissed successfully")
         except TimeoutException:
             self.logger.debug("No popup detected - proceeding with main flow")
     
@@ -453,7 +453,7 @@ class BrowserManager:
         self.logger.info("Clicking initial access button...")
         button1 = wait.until(EC.element_to_be_clickable((By.XPATH, self.config.xpath_button_1)))
         driver.execute_script("arguments[0].click();", button1)
-        self.logger.info("✅ Initial button clicked")
+        self.logger.info("Initial button clicked")
         
         # Critical delay: Many captive portals require time between interactions
         time.sleep(Constants.PORTAL_INTERACTION_DELAY)
@@ -463,7 +463,7 @@ class BrowserManager:
         button2 = wait.until(EC.element_to_be_clickable((By.XPATH, self.config.xpath_button_2)))
         driver.execute_script("arguments[0].click();", button2)
         driver.execute_script("arguments[0].click();", button2)  # Double-click for reliability
-        self.logger.info("✅ Connection button clicked")
+        self.logger.info("Connection button clicked")
         
         # Wait for connection establishment
         time.sleep(Constants.POST_LOGIN_VERIFICATION_WAIT)
@@ -625,10 +625,10 @@ try {
         
         # Skip if hotspot is already active
         if self.get_hotspot_status():
-            self.logger.info("🔥 Mobile hotspot already active")
+            self.logger.info("Mobile hotspot already active")
             return True
         
-        self.logger.info("🔥 Enabling mobile hotspot for connection sharing...")
+        self.logger.info("Enabling mobile hotspot for connection sharing...")
         
         try:
             # Complex PowerShell command to enable hotspot via Windows Runtime API
@@ -662,7 +662,6 @@ try {
             if result.returncode == 0 and "SUCCESS" in result.stdout:
                 self._invalidate_hotspot_cache()
                 time.sleep(Constants.HOTSPOT_STATE_TRANSITION_TIME)
-                self.logger.info("✅ Mobile hotspot enabled - sharing internet connection")
                 return True
             else:
                 raise HotspotError(f"Hotspot enable operation failed: {result.stdout}")
@@ -677,10 +676,10 @@ try {
         
         # Skip if hotspot is already inactive
         if not self.get_hotspot_status():
-            self.logger.info("🔥 Mobile hotspot already inactive")
+            self.logger.info("Mobile hotspot already inactive")
             return True
         
-        self.logger.info("🔥 Disabling mobile hotspot...")
+        self.logger.info("Disabling mobile hotspot...")
         
         try:
             # PowerShell command to disable hotspot via Windows Runtime API
@@ -713,7 +712,7 @@ try {
             
             if result.returncode == 0 and "SUCCESS" in result.stdout:
                 self._invalidate_hotspot_cache()
-                self.logger.info("✅ Mobile hotspot disabled")
+                self.logger.info("Mobile hotspot disabled")
                 return True
             else:
                 raise HotspotError(f"Hotspot disable operation failed: {result.stdout}")
@@ -767,7 +766,7 @@ class WifiAutoConnector:
     
     def _perform_cleanup(self) -> None:
         """Perform cleanup operations before shutdown"""
-        self.logger.info("🧹 Performing application cleanup...")
+        self.logger.info("Performing application cleanup...")
         try:
             self.browser_manager._cleanup_browser_session()
             # Terminate any orphaned WebDriver processes
@@ -778,7 +777,7 @@ class WifiAutoConnector:
     
     def run(self) -> None:
         """Main execution loop for continuous WiFi connection monitoring"""
-        self.logger.info("🚀 Starting WiFi Auto-Connector with captive portal support...")
+        self.logger.info("Starting WiFi Auto-Connector with captive portal support...")
         
         # Verify system capabilities before starting
         self._verify_system_capabilities()
@@ -807,18 +806,18 @@ class WifiAutoConnector:
         # Check MAC spoofing availability
         if self.config.mac_spoofing_enabled:
             if not self.mac_manager.is_mac_spoofing_available():
-                self.logger.warning("⚠️  MAC spoofing tool not found - feature disabled")
-                self.logger.info("    Install with: pip install spoof-mac")
+                self.logger.warning("MAC spoofing tool not found - feature disabled")
+                self.logger.info("  Install with: pip install spoof-mac")
                 self.config.mac_spoofing_enabled = False
         
         # Check mobile hotspot capability
         if self.config.mobile_hotspot_enabled:
             if not self.hotspot_manager.has_administrator_privileges():
-                self.logger.warning("⚠️  Administrator privileges required for hotspot management")
+                self.logger.warning("Administrator privileges required for hotspot management")
             elif not self.hotspot_manager.is_hotspot_functionality_available():
-                self.logger.warning("⚠️  Mobile hotspot not available on this system")
+                self.logger.warning("Mobile hotspot not available on this system")
             else:
-                self.logger.info("✅ Mobile hotspot functionality ready")
+                self.logger.info("Mobile hotspot functionality ready")
     
     def _display_current_status(self) -> None:
         """Display current system status and configuration"""
@@ -907,7 +906,7 @@ class WifiAutoConnector:
                 self.network_manager.invalidate_connectivity_cache()
                 return True
         except MacAddressError as e:
-            self.logger.error(f"❌ MAC address reset failed: {e}")
+            self.logger.error(f"MAC address reset failed: {e}")
             # Apply cooldown even on failure to avoid rapid retry loops
             time.sleep(self.config.mac_reset_cooldown_seconds)
         
@@ -923,12 +922,12 @@ class WifiAutoConnector:
         try:
             if enable:
                 self.hotspot_manager.enable_mobile_hotspot()
-                self.logger.info("🔥 Mobile hotspot activated - sharing WiFi connection")
+                self.logger.info("Mobile hotspot activated - sharing WiFi connection")
             else:
                 self.hotspot_manager.disable_mobile_hotspot()
-                self.logger.info("🔥 Mobile hotspot deactivated")
+                self.logger.info("Mobile hotspot deactivated")
         except HotspotError as e:
-            self.logger.error(f"❌ Mobile hotspot operation failed: {e}")
+            self.logger.error(f"Mobile hotspot operation failed: {e}")
     
     def _execute_portal_authentication(self) -> None:
         """Attempt captive portal authentication using browser automation"""
@@ -937,14 +936,14 @@ class WifiAutoConnector:
         login_result = self.browser_manager.execute_captive_portal_login()
         
         if login_result == LoginResult.SUCCESS:
-            self.logger.info("✅ Captive portal authentication completed")
+            self.logger.info("Captive portal authentication completed")
             self.network_manager.invalidate_connectivity_cache()
         else:
-            self.logger.error(f"❌ Captive portal authentication failed: {login_result.value}")
+            self.logger.error(f"Captive portal authentication failed: {login_result.value}")
     
     def _wait_for_next_check(self) -> None:
         """Wait for the configured interval before next connectivity check"""
-        self.logger.info(f"⏳ Next connectivity check in {self.config.connectivity_check_interval} seconds...")
+        self.logger.info(f"Next connectivity check in {self.config.connectivity_check_interval} seconds...")
         time.sleep(self.config.connectivity_check_interval)
 
 # ================================= MAIN EXECUTION =================================
